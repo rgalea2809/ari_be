@@ -1,13 +1,25 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FileParserService } from './file_parser.service';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { TxtToJsonDto } from './dto';
 
 @Controller('file-parser')
 export class FileParserController {
   constructor(private fileParserService: FileParserService) {}
 
   @Post('txt-to-json')
-  txtToJson(@Body() dto: {}) {
-    return this.fileParserService.convertTxtToJson(dto);
+  @UseInterceptors(FileInterceptor('file'))
+  txtToJson(
+    @Body() dto: TxtToJsonDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.fileParserService.convertTxtToJson(dto, file);
   }
 
   @Post('txt-to-xml')
