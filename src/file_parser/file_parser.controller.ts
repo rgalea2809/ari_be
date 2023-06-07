@@ -45,11 +45,6 @@ export class FileParserController {
     file: Express.Multer.File,
     @Res({ passthrough: true }) res: Response,
   ) {
-    res.set({
-      'Content-Type': 'application/json',
-      'Content-Disposition': 'attachment;',
-    });
-
     return this.fileParserService.convertTxtToJson(dto, file);
   }
 
