@@ -24,6 +24,10 @@ export class FileParserService {
   ) {
     try {
       const jsonContent = await this.getJsonFromTxt(dto, multerFile);
+      if (!fs.existsSync('./outputs')) {
+        fs.mkdirSync('./outputs');
+      }
+
       fs.writeFileSync(
         './outputs/output-of-uploaded-txt.json',
         jsonContent,
@@ -61,6 +65,10 @@ export class FileParserService {
 
       var options = { compact: true, ignoreComment: true, spaces: 4 };
       var result = xmljs.json2xml(finalJsonContent, options);
+
+      if (!fs.existsSync('./outputs')) {
+        fs.mkdirSync('./outputs');
+      }
 
       fs.writeFileSync('./outputs/output-of-uploaded-txt.xml', result, 'utf8');
 
@@ -171,6 +179,10 @@ export class FileParserService {
         );
       }
 
+      if (!fs.existsSync('./outputs')) {
+        fs.mkdirSync('./outputs');
+      }
+
       fs.writeFileSync(
         './outputs/output-of-uploaded-json.txt',
         txtContent,
@@ -230,6 +242,10 @@ export class FileParserService {
             `${clients[client].telefono._text}${dto.separator}` +
             `${clients[client].poligono._text}${dto.separator}\n`,
         );
+      }
+
+      if (!fs.existsSync('./outputs')) {
+        fs.mkdirSync('./outputs');
       }
 
       fs.writeFileSync(
