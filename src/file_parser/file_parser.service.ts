@@ -10,6 +10,8 @@ import * as fs from 'fs';
 import { createCipheriv, createDecipheriv, randomBytes, scrypt } from 'crypto';
 import { promisify } from 'util';
 import * as xmljs from 'xml-js';
+import * as readline from 'readline';
+import * as events from 'events';
 
 @Injectable()
 export class FileParserService {
@@ -21,9 +23,13 @@ export class FileParserService {
   ) {
     try {
       const jsonContent = await this.getJsonFromTxt(dto, multerFile);
-      fs.writeFileSync('./outputs/uploaded-txt.json', jsonContent, 'utf8');
+      fs.writeFileSync(
+        './outputs/output-of-uploaded-txt.json',
+        jsonContent,
+        'utf8',
+      );
 
-      const file = fs.createReadStream('./outputs/uploaded-txt.json');
+      const file = fs.createReadStream('./outputs/output-of-uploaded-txt.json');
 
       return new StreamableFile(file);
     } catch (err) {
@@ -41,10 +47,12 @@ export class FileParserService {
   ) {
     try {
       const jsonContent = await this.getJsonFromTxt(dto, multerFile);
+      const parsedJsonContent = JSON.parse(jsonContent);
+
       const finalJsonContent = JSON.stringify({
         clients: [
           {
-            client: JSON.parse(jsonContent),
+            client: parsedJsonContent,
           },
         ],
       });
@@ -52,9 +60,9 @@ export class FileParserService {
       var options = { compact: true, ignoreComment: true, spaces: 4 };
       var result = xmljs.json2xml(finalJsonContent, options);
 
-      fs.writeFileSync('./outputs/uploaded-txt.xml', result, 'utf8');
+      fs.writeFileSync('./outputs/output-of-uploaded-txt.xml', result, 'utf8');
 
-      const file = fs.createReadStream('./outputs/uploaded-txt.xml');
+      const file = fs.createReadStream('./outputs/output-of-uploaded-txt.xml');
 
       return new StreamableFile(file);
     } catch (err) {
@@ -68,26 +76,40 @@ export class FileParserService {
 
   async getJsonFromTxt(dto: ConvertionInfoDto, file: Express.Multer.File) {
     try {
-      const data = fs.readFileSync('./uploads/uploaded-txt.txt', 'utf8');
-      const subStrings = data.split(dto.separator);
+      var informationLines: [string?] = [];
 
-      if (subStrings.length < 7) {
-        throw new BadRequestException('Incorrect input parameters');
-      }
+      const rl = readline.createInterface({
+        input: fs.createReadStream('./uploads/uploaded-txt.txt', 'utf8'),
+        crlfDelay: Infinity,
+      });
 
-      const encryptedPayload = await this.encryptCardNumber(
-        subStrings[3] ?? '',
-        dto.secret,
-      );
+      rl.on('line', (line) => {
+        informationLines.push(line);
+      });
 
-      const tokenifiedCardNumber = await this.tokenifyEncryptedCardNumber(
-        encryptedPayload.encryptedText,
-        encryptedPayload.iv,
-        dto.secret,
-      );
+      await events.once(rl, 'close');
 
-      const json = [
-        {
+      var json: [object?] = [];
+      console.log(informationLines);
+      for (var line in informationLines) {
+        const subStrings = informationLines[line].split(dto.separator);
+
+        if (subStrings.length < 7) {
+          throw new BadRequestException('Incorrect input parameters');
+        }
+
+        const encryptedPayload = await this.encryptCardNumber(
+          subStrings[3] ?? '',
+          dto.secret,
+        );
+
+        const tokenifiedCardNumber = await this.tokenifyEncryptedCardNumber(
+          encryptedPayload.encryptedText,
+          encryptedPayload.iv,
+          dto.secret,
+        );
+
+        json.push({
           documento: subStrings[0] ?? '',
           nombres: subStrings[1] ?? '',
           apellidos: subStrings[2] ?? '',
@@ -95,8 +117,8 @@ export class FileParserService {
           tipo: subStrings[4] ?? '',
           telefono: subStrings[5] ?? '',
           poligono: subStrings[6] ?? '',
-        },
-      ];
+        });
+      }
 
       // Generate json object
       return JSON.stringify(json);
