@@ -9,12 +9,64 @@ import { JwtService } from '@nestjs/jwt';
 import * as fs from 'fs';
 import { createCipheriv, createDecipheriv, randomBytes, scrypt } from 'crypto';
 import { promisify } from 'util';
+import * as xmljs from 'xml-js';
 
 @Injectable()
 export class FileParserService {
   constructor(private jwt: JwtService) {}
 
-  async convertTxtToJson(dto: ConvertionInfoDto, file: Express.Multer.File) {
+  async convertTxtToJson(
+    dto: ConvertionInfoDto,
+    multerFile: Express.Multer.File,
+  ) {
+    try {
+      const jsonContent = await this.getJsonFromTxt(dto, multerFile);
+      fs.writeFileSync('./outputs/uploaded-txt.json', jsonContent, 'utf8');
+
+      const file = fs.createReadStream('./outputs/uploaded-txt.json');
+
+      return new StreamableFile(file);
+    } catch (err) {
+      if (err instanceof BadRequestException) {
+        throw err;
+      }
+
+      throw new InternalServerErrorException('Error processing file');
+    }
+  }
+
+  async convertTxtToXml(
+    dto: ConvertionInfoDto,
+    multerFile: Express.Multer.File,
+  ) {
+    try {
+      const jsonContent = await this.getJsonFromTxt(dto, multerFile);
+      const finalJsonContent = JSON.stringify({
+        clients: [
+          {
+            client: JSON.parse(jsonContent),
+          },
+        ],
+      });
+
+      var options = { compact: true, ignoreComment: true, spaces: 4 };
+      var result = xmljs.json2xml(finalJsonContent, options);
+
+      fs.writeFileSync('./outputs/uploaded-txt.xml', result, 'utf8');
+
+      const file = fs.createReadStream('./outputs/uploaded-txt.xml');
+
+      return new StreamableFile(file);
+    } catch (err) {
+      if (err instanceof BadRequestException) {
+        throw err;
+      }
+
+      throw new InternalServerErrorException('Error processing file');
+    }
+  }
+
+  async getJsonFromTxt(dto: ConvertionInfoDto, file: Express.Multer.File) {
     try {
       const data = fs.readFileSync('./uploads/uploaded-txt.txt', 'utf8');
       const subStrings = data.split(dto.separator);
@@ -47,12 +99,7 @@ export class FileParserService {
       ];
 
       // Generate json object
-      var jsonContent = JSON.stringify(json);
-      fs.writeFileSync('./outputs/uploaded-txt.json', jsonContent, 'utf8');
-
-      const file = fs.createReadStream('./outputs/uploaded-txt.json');
-
-      return new StreamableFile(file);
+      return JSON.stringify(json);
     } catch (err) {
       if (err instanceof BadRequestException) {
         throw err;
@@ -61,8 +108,6 @@ export class FileParserService {
       throw new InternalServerErrorException('Error processing file');
     }
   }
-
-  async convertTxtToXml(dto: ConvertionInfoDto, file: Express.Multer.File) {}
 
   async encryptCardNumber(cardNumber: string, secret: string) {
     const iv = randomBytes(16);
