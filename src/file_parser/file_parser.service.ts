@@ -24,6 +24,10 @@ export class FileParserService {
   ) {
     try {
       const jsonContent = await this.getJsonFromTxt(dto, multerFile);
+      if (!fs.existsSync('./outputs')) {
+        fs.mkdirSync('./outputs');
+      }
+
       fs.writeFileSync(
         './outputs/output-of-uploaded-txt.json',
         jsonContent,
@@ -34,6 +38,7 @@ export class FileParserService {
 
       return new StreamableFile(file);
     } catch (err) {
+      console.log('Error @ convertTxtToJson: ' + err);
       if (err instanceof BadRequestException) {
         throw err;
       }
@@ -61,12 +66,17 @@ export class FileParserService {
       var options = { compact: true, ignoreComment: true, spaces: 4 };
       var result = xmljs.json2xml(finalJsonContent, options);
 
+      if (!fs.existsSync('./outputs')) {
+        fs.mkdirSync('./outputs');
+      }
+
       fs.writeFileSync('./outputs/output-of-uploaded-txt.xml', result, 'utf8');
 
       const file = fs.createReadStream('./outputs/output-of-uploaded-txt.xml');
 
       return new StreamableFile(file);
     } catch (err) {
+      console.log('Error @ convertTxtToXml: ' + err);
       if (err instanceof BadRequestException) {
         throw err;
       }
@@ -91,7 +101,6 @@ export class FileParserService {
       await events.once(rl, 'close');
 
       var json: [object?] = [];
-      console.log(informationLines);
       for (var line in informationLines) {
         const subStrings = informationLines[line].split(dto.separator);
 
@@ -124,6 +133,7 @@ export class FileParserService {
       // Generate json object
       return JSON.stringify(json);
     } catch (err) {
+      console.log('Error @ getJsonFromTxt: ' + err);
       if (err instanceof BadRequestException) {
         throw err;
       }
@@ -158,8 +168,6 @@ export class FileParserService {
           dto.secret,
         );
 
-        console.log(cardPayload);
-
         txtContent = txtContent.concat(
           `${clients[client].documento}${dto.separator}` +
             `${clients[client].nombres}${dto.separator}$` +
@@ -169,6 +177,10 @@ export class FileParserService {
             `${clients[client].telefono}${dto.separator}` +
             `${clients[client].poligono}${dto.separator}\n`,
         );
+      }
+
+      if (!fs.existsSync('./outputs')) {
+        fs.mkdirSync('./outputs');
       }
 
       fs.writeFileSync(
@@ -181,6 +193,7 @@ export class FileParserService {
 
       return new StreamableFile(file);
     } catch (err) {
+      console.log('Error @ convertJsonToTxt: ' + err);
       if (err instanceof BadRequestException) {
         throw err;
       }
@@ -200,7 +213,6 @@ export class FileParserService {
       };
       var result = xmljs.xml2json(rawdata, options);
       const jsonObject = JSON.parse(result);
-      console.log(jsonObject);
       const clients = jsonObject.clients.client;
 
       if (!clients || clients.length < 1) {
@@ -232,6 +244,10 @@ export class FileParserService {
         );
       }
 
+      if (!fs.existsSync('./outputs')) {
+        fs.mkdirSync('./outputs');
+      }
+
       fs.writeFileSync(
         './outputs/output-of-uploaded-xml.txt',
         txtContent,
@@ -242,12 +258,12 @@ export class FileParserService {
 
       return new StreamableFile(file);
     } catch (err) {
+      console.log('Error @ convertXmlToTxt: ' + err);
       if (err instanceof BadRequestException) {
         throw err;
       }
 
-      throw err;
-      // throw new InternalServerErrorException('Error processing file');
+      throw new InternalServerErrorException('Error processing file');
     }
   }
 
@@ -317,8 +333,6 @@ export class FileParserService {
       secret: secret,
     });
 
-    console.log(token);
-
     return token;
   }
 
@@ -329,7 +343,8 @@ export class FileParserService {
       });
 
       return payload;
-    } catch {
+    } catch (err) {
+      console.log('Error @ extractPayloadFromToken: ' + err);
       throw new UnauthorizedException();
     }
   }
