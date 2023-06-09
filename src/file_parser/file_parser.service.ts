@@ -3,6 +3,7 @@ import {
   Injectable,
   InternalServerErrorException,
   StreamableFile,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConvertionInfoDto } from './dto';
 import { JwtService } from '@nestjs/jwt';
@@ -131,6 +132,64 @@ export class FileParserService {
     }
   }
 
+  async convertJsonToTxt(
+    dto: ConvertionInfoDto,
+    multerFile: Express.Multer.File,
+  ) {
+    try {
+      const rawdata = fs.readFileSync('./uploads/uploaded-json.json', 'utf8');
+      const clients = JSON.parse(rawdata);
+
+      if (!clients || clients.length < 1) {
+        throw new BadRequestException('Incorrect input parameters');
+      }
+
+      var txtContent = '';
+
+      for (var client in clients) {
+        const cardPayload = await this.extractPayloadFromToken(
+          clients[client].tarjeta,
+          dto.secret,
+        );
+
+        const originalCardNumber = await this.decryptCardNumber(
+          cardPayload.encryptedCardNumber,
+          cardPayload.iv,
+          dto.secret,
+        );
+
+        console.log(cardPayload);
+
+        txtContent = txtContent.concat(
+          `${clients[client].documento}${dto.separator}` +
+            `${clients[client].nombres}${dto.separator}$` +
+            `${clients[client].apellidos}${dto.separator}` +
+            `${originalCardNumber}${dto.separator}` +
+            `${clients[client].tipo}${dto.separator}` +
+            `${clients[client].telefono}${dto.separator}` +
+            `${clients[client].poligono}${dto.separator}\n`,
+        );
+      }
+
+      fs.writeFileSync(
+        './outputs/output-of-uploaded-json.txt',
+        txtContent,
+        'utf8',
+      );
+
+      const file = fs.createReadStream('./outputs/output-of-uploaded-json.txt');
+
+      return new StreamableFile(file);
+    } catch (err) {
+      if (err instanceof BadRequestException) {
+        throw err;
+      }
+
+      throw new InternalServerErrorException('Error processing file');
+    }
+  }
+
+  /// Utils
   async encryptCardNumber(cardNumber: string, secret: string) {
     const iv = randomBytes(16);
 
@@ -199,5 +258,17 @@ export class FileParserService {
     console.log(token);
 
     return token;
+  }
+
+  async extractPayloadFromToken(token: string, secret: string) {
+    try {
+      const payload = await this.jwt.verifyAsync(token, {
+        secret: secret,
+      });
+
+      return payload;
+    } catch {
+      throw new UnauthorizedException();
+    }
   }
 }

@@ -103,6 +103,6 @@ export class FileParserController {
     file: Express.Multer.File,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.fileParserService.convertTxtToJson(dto, file);
+    return this.fileParserService.convertJsonToTxt(dto, file);
   }
 }
