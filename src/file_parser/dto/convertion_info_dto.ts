@@ -1,4 +1,4 @@
-export class TxtToJsonDto {
+export class ConvertionInfoDto {
   separator: string;
   secret: string;
 }

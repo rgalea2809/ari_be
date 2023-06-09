@@ -1,1 +1,1 @@
-export * from './txt_to_json.dto';
+export * from './convertion_info_dto';

@@ -4,7 +4,7 @@ import {
   InternalServerErrorException,
   StreamableFile,
 } from '@nestjs/common';
-import { TxtToJsonDto } from './dto';
+import { ConvertionInfoDto } from './dto';
 import { JwtService } from '@nestjs/jwt';
 import * as fs from 'fs';
 import { createCipheriv, createDecipheriv, randomBytes, scrypt } from 'crypto';
@@ -14,7 +14,7 @@ import { promisify } from 'util';
 export class FileParserService {
   constructor(private jwt: JwtService) {}
 
-  async convertTxtToJson(dto: TxtToJsonDto, file: Express.Multer.File) {
+  async convertTxtToJson(dto: ConvertionInfoDto, file: Express.Multer.File) {
     try {
       const data = fs.readFileSync('./uploads/uploaded-txt.txt', 'utf8');
       const subStrings = data.split(dto.separator);
@@ -57,9 +57,12 @@ export class FileParserService {
       if (err instanceof BadRequestException) {
         throw err;
       }
-      throw new InternalServerErrorException('Error reading file');
+
+      throw new InternalServerErrorException('Error processing file');
     }
   }
+
+  async convertTxtToXml(dto: ConvertionInfoDto, file: Express.Multer.File) {}
 
   async encryptCardNumber(cardNumber: string, secret: string) {
     const iv = randomBytes(16);

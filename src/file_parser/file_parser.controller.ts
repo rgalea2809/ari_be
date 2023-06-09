@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { FileParserService } from './file_parser.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { TxtToJsonDto } from './dto';
+import { ConvertionInfoDto } from './dto';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import type { Response } from 'express';
@@ -32,7 +32,7 @@ export class FileParserController {
     }),
   )
   txtToJson(
-    @Body() dto: TxtToJsonDto,
+    @Body() dto: ConvertionInfoDto,
     @UploadedFile(
       new ParseFilePipeBuilder()
         .addFileTypeValidator({
@@ -49,9 +49,31 @@ export class FileParserController {
   }
 
   @Post('txt-to-xml')
-  txtToXml(@Body() dto: {}) {
-    return {
-      message: 'TODO',
-    };
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const uploadedTxtName = 'uploaded-txt';
+          cb(null, `${uploadedTxtName}${extname(file.originalname)}`);
+        },
+      }),
+    }),
+  )
+  txtToXml(
+    @Body() dto: ConvertionInfoDto,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({
+          fileType: 'text/plain', // || 'application/xml' || 'application/json'
+        })
+        .build({
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        }),
+    )
+    file: Express.Multer.File,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.fileParserService.convertTxtToXml(dto, file);
   }
 }
