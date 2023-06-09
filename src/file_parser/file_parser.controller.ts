@@ -105,4 +105,33 @@ export class FileParserController {
   ) {
     return this.fileParserService.convertJsonToTxt(dto, file);
   }
+
+  @Post('xml-to-txt')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const uploadedTxtName = 'uploaded-xml';
+          cb(null, `${uploadedTxtName}${extname(file.originalname)}`);
+        },
+      }),
+    }),
+  )
+  xmlToTxt(
+    @Body() dto: ConvertionInfoDto,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({
+          fileType: 'application/xml', // || 'application/xml' || 'application/json'
+        })
+        .build({
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        }),
+    )
+    file: Express.Multer.File,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.fileParserService.convertXmlToTxt(dto, file);
+  }
 }

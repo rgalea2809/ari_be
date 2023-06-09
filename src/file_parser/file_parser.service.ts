@@ -189,6 +189,68 @@ export class FileParserService {
     }
   }
 
+  async convertXmlToTxt(
+    dto: ConvertionInfoDto,
+    multerFile: Express.Multer.File,
+  ) {
+    try {
+      const rawdata = fs.readFileSync('./uploads/uploaded-xml.xml', 'utf8');
+      var options = {
+        compact: true,
+      };
+      var result = xmljs.xml2json(rawdata, options);
+      const jsonObject = JSON.parse(result);
+      console.log(jsonObject);
+      const clients = jsonObject.clients.client;
+
+      if (!clients || clients.length < 1) {
+        throw new BadRequestException('Incorrect input parameters');
+      }
+
+      var txtContent = '';
+
+      for (var client in clients) {
+        const cardPayload = await this.extractPayloadFromToken(
+          clients[client].tarjeta._text,
+          dto.secret,
+        );
+
+        const originalCardNumber = await this.decryptCardNumber(
+          cardPayload.encryptedCardNumber,
+          cardPayload.iv,
+          dto.secret,
+        );
+
+        txtContent = txtContent.concat(
+          `${clients[client].documento._text}${dto.separator}` +
+            `${clients[client].nombres._text}${dto.separator}$` +
+            `${clients[client].apellidos._text}${dto.separator}` +
+            `${originalCardNumber}${dto.separator}` +
+            `${clients[client].tipo._text}${dto.separator}` +
+            `${clients[client].telefono._text}${dto.separator}` +
+            `${clients[client].poligono._text}${dto.separator}\n`,
+        );
+      }
+
+      fs.writeFileSync(
+        './outputs/output-of-uploaded-xml.txt',
+        txtContent,
+        'utf8',
+      );
+
+      const file = fs.createReadStream('./outputs/output-of-uploaded-xml.txt');
+
+      return new StreamableFile(file);
+    } catch (err) {
+      if (err instanceof BadRequestException) {
+        throw err;
+      }
+
+      throw err;
+      // throw new InternalServerErrorException('Error processing file');
+    }
+  }
+
   /// Utils
   async encryptCardNumber(cardNumber: string, secret: string) {
     const iv = randomBytes(16);
