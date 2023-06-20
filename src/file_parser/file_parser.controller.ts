@@ -123,7 +123,7 @@ export class FileParserController {
     @UploadedFile(
       new ParseFilePipeBuilder()
         .addFileTypeValidator({
-          fileType: 'application/xml', // || 'application/xml' || 'application/json'
+          fileType: RegExp('application/xml|text/xml'), // || 'application/xml' || 'application/json'
         })
         .build({
           errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
