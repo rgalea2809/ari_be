@@ -52,7 +52,7 @@ export class FileParserService {
     multerFile: Express.Multer.File,
   ) {
     try {
-      const jsonContent = await this.getJsonFromTxt(dto, multerFile);
+      const jsonContent = await this.getJsonFromTxt(dto, multerFile, true);
       const parsedJsonContent = JSON.parse(jsonContent);
 
       const finalJsonContent = JSON.stringify({
@@ -85,7 +85,11 @@ export class FileParserService {
     }
   }
 
-  async getJsonFromTxt(dto: ConvertionInfoDto, file: Express.Multer.File) {
+  async getJsonFromTxt(
+    dto: ConvertionInfoDto,
+    file: Express.Multer.File,
+    isForXml: boolean = false,
+  ) {
     try {
       var informationLines: [string?] = [];
 
@@ -104,7 +108,7 @@ export class FileParserService {
       for (var line in informationLines) {
         const subStrings = informationLines[line].split(dto.separator);
 
-        if (subStrings.length < 7) {
+        if (subStrings.length != 7) {
           throw new BadRequestException('Incorrect input parameters');
         }
 
@@ -119,6 +123,11 @@ export class FileParserService {
           dto.secret,
         );
 
+        const convertedCoordinates = await this.convertCoordsFromTxtToJson(
+          subStrings[6],
+          isForXml,
+        );
+
         json.push({
           documento: subStrings[0] ?? '',
           nombres: subStrings[1] ?? '',
@@ -126,7 +135,7 @@ export class FileParserService {
           tarjeta: tokenifiedCardNumber,
           tipo: subStrings[4] ?? '',
           telefono: subStrings[5] ?? '',
-          poligono: subStrings[6] ?? '',
+          poligono: convertedCoordinates.parsedCoordinates ?? '',
         });
       }
 
@@ -168,14 +177,18 @@ export class FileParserService {
           dto.secret,
         );
 
+        const poligonString = await this.parseJsonPolygonToStringPolygon(
+          clients[client].poligono,
+        );
+
         txtContent = txtContent.concat(
           `${clients[client].documento}${dto.separator}` +
-            `${clients[client].nombres}${dto.separator}$` +
+            `${clients[client].nombres}${dto.separator}` +
             `${clients[client].apellidos}${dto.separator}` +
             `${originalCardNumber}${dto.separator}` +
             `${clients[client].tipo}${dto.separator}` +
             `${clients[client].telefono}${dto.separator}` +
-            `${clients[client].poligono}${dto.separator}\n`,
+            `${poligonString}\n`,
         );
       }
 
@@ -221,9 +234,16 @@ export class FileParserService {
 
       var txtContent = '';
 
-      for (var client in clients) {
+      for (var clientIndex in clients) {
+        const currentClient = clients[clientIndex];
+
+        const parsedCoordinatesString =
+          await this.parseJsonPolygonToStringPolygonFromXml(
+            currentClient.poligono.coordenadas,
+          );
+
         const cardPayload = await this.extractPayloadFromToken(
-          clients[client].tarjeta._text,
+          currentClient.tarjeta._text,
           dto.secret,
         );
 
@@ -234,13 +254,13 @@ export class FileParserService {
         );
 
         txtContent = txtContent.concat(
-          `${clients[client].documento._text}${dto.separator}` +
-            `${clients[client].nombres._text}${dto.separator}$` +
-            `${clients[client].apellidos._text}${dto.separator}` +
+          `${currentClient.documento._text}${dto.separator}` +
+            `${currentClient.nombres._text}${dto.separator}$` +
+            `${currentClient.apellidos._text}${dto.separator}` +
             `${originalCardNumber}${dto.separator}` +
-            `${clients[client].tipo._text}${dto.separator}` +
-            `${clients[client].telefono._text}${dto.separator}` +
-            `${clients[client].poligono._text}${dto.separator}\n`,
+            `${currentClient.tipo._text}${dto.separator}` +
+            `${currentClient.telefono._text}${dto.separator}` +
+            `${parsedCoordinatesString}\n`,
         );
       }
 
@@ -347,5 +367,78 @@ export class FileParserService {
       console.log('Error @ extractPayloadFromToken: ' + err);
       throw new UnauthorizedException();
     }
+  }
+
+  async convertCoordsFromTxtToJson(
+    coordsArray: string,
+    isForXml: boolean = false,
+  ) {
+    try {
+      const subStrings = coordsArray.split(']').filter((str) => str !== '');
+      let parsedCoordinates: [number[]?] = [];
+
+      for (var subStringIndex in subStrings) {
+        const currentCoordinatesSubString = subStrings[subStringIndex];
+        const coordinates = currentCoordinatesSubString.replace('[', '');
+        const separatedCoordinates = coordinates.split(',');
+
+        const finalCoordinates = separatedCoordinates.map(function (str) {
+          return parseFloat(str) || 0;
+        });
+
+        parsedCoordinates.push(finalCoordinates);
+      }
+
+      if (isForXml) {
+        let xmlTags: [object?] = [];
+
+        for (var coordinatesIndex in parsedCoordinates) {
+          const currentCoordinatesPair = parsedCoordinates[coordinatesIndex];
+
+          xmlTags.push({
+            x: currentCoordinatesPair[0],
+            y: currentCoordinatesPair[1],
+          });
+        }
+
+        return { parsedCoordinates: { coordenadas: xmlTags } };
+      }
+
+      return { parsedCoordinates };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async parseJsonPolygonToStringPolygon(polygon: [string[]]) {
+    var finalPolygonString = '';
+
+    for (var polygonIndex in polygon) {
+      const currentCoords = polygon[polygonIndex];
+
+      finalPolygonString = finalPolygonString.concat(
+        '[' + currentCoords[0] + ',' + currentCoords[1] + ']',
+      );
+    }
+
+    return finalPolygonString;
+  }
+
+  async parseJsonPolygonToStringPolygonFromXml(polygon: [any]) {
+    var finalPolygonString = '';
+
+    for (var polygonIndex in polygon) {
+      const currentCoordsObject = polygon[polygonIndex];
+
+      finalPolygonString = finalPolygonString.concat(
+        '[' +
+          currentCoordsObject.x._text +
+          ',' +
+          currentCoordsObject.y._text +
+          ']',
+      );
+    }
+
+    return finalPolygonString;
   }
 }
