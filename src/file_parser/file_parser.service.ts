@@ -255,7 +255,7 @@ export class FileParserService {
 
         txtContent = txtContent.concat(
           `${currentClient.documento._text}${dto.separator}` +
-            `${currentClient.nombres._text}${dto.separator}$` +
+            `${currentClient.nombres._text}${dto.separator}` +
             `${currentClient.apellidos._text}${dto.separator}` +
             `${originalCardNumber}${dto.separator}` +
             `${currentClient.tipo._text}${dto.separator}` +
