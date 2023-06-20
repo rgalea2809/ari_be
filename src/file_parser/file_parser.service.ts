@@ -177,14 +177,18 @@ export class FileParserService {
           dto.secret,
         );
 
+        const poligonString = await this.parseJsonPolygonToStringPolygon(
+          clients[client].poligono,
+        );
+
         txtContent = txtContent.concat(
           `${clients[client].documento}${dto.separator}` +
-            `${clients[client].nombres}${dto.separator}$` +
+            `${clients[client].nombres}${dto.separator}` +
             `${clients[client].apellidos}${dto.separator}` +
             `${originalCardNumber}${dto.separator}` +
             `${clients[client].tipo}${dto.separator}` +
             `${clients[client].telefono}${dto.separator}` +
-            `${clients[client].poligono}${dto.separator}\n`,
+            `${poligonString}\n`,
         );
       }
 
@@ -230,9 +234,16 @@ export class FileParserService {
 
       var txtContent = '';
 
-      for (var client in clients) {
+      for (var clientIndex in clients) {
+        const currentClient = clients[clientIndex];
+
+        const parsedCoordinatesString =
+          await this.parseJsonPolygonToStringPolygonFromXml(
+            currentClient.poligono.coordenadas,
+          );
+
         const cardPayload = await this.extractPayloadFromToken(
-          clients[client].tarjeta._text,
+          currentClient.tarjeta._text,
           dto.secret,
         );
 
@@ -243,13 +254,13 @@ export class FileParserService {
         );
 
         txtContent = txtContent.concat(
-          `${clients[client].documento._text}${dto.separator}` +
-            `${clients[client].nombres._text}${dto.separator}$` +
-            `${clients[client].apellidos._text}${dto.separator}` +
+          `${currentClient.documento._text}${dto.separator}` +
+            `${currentClient.nombres._text}${dto.separator}$` +
+            `${currentClient.apellidos._text}${dto.separator}` +
             `${originalCardNumber}${dto.separator}` +
-            `${clients[client].tipo._text}${dto.separator}` +
-            `${clients[client].telefono._text}${dto.separator}` +
-            `${clients[client].poligono._text}${dto.separator}\n`,
+            `${currentClient.tipo._text}${dto.separator}` +
+            `${currentClient.telefono._text}${dto.separator}` +
+            `${parsedCoordinatesString}\n`,
         );
       }
 
@@ -397,5 +408,37 @@ export class FileParserService {
     } catch (err) {
       throw err;
     }
+  }
+
+  async parseJsonPolygonToStringPolygon(polygon: [string[]]) {
+    var finalPolygonString = '';
+
+    for (var polygonIndex in polygon) {
+      const currentCoords = polygon[polygonIndex];
+
+      finalPolygonString = finalPolygonString.concat(
+        '[' + currentCoords[0] + ',' + currentCoords[1] + ']',
+      );
+    }
+
+    return finalPolygonString;
+  }
+
+  async parseJsonPolygonToStringPolygonFromXml(polygon: [any]) {
+    var finalPolygonString = '';
+
+    for (var polygonIndex in polygon) {
+      const currentCoordsObject = polygon[polygonIndex];
+
+      finalPolygonString = finalPolygonString.concat(
+        '[' +
+          currentCoordsObject.x._text +
+          ',' +
+          currentCoordsObject.y._text +
+          ']',
+      );
+    }
+
+    return finalPolygonString;
   }
 }
