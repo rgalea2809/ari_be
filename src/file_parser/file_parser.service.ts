@@ -52,7 +52,7 @@ export class FileParserService {
     multerFile: Express.Multer.File,
   ) {
     try {
-      const jsonContent = await this.getJsonFromTxt(dto, multerFile);
+      const jsonContent = await this.getJsonFromTxt(dto, multerFile, true);
       const parsedJsonContent = JSON.parse(jsonContent);
 
       const finalJsonContent = JSON.stringify({
@@ -85,7 +85,11 @@ export class FileParserService {
     }
   }
 
-  async getJsonFromTxt(dto: ConvertionInfoDto, file: Express.Multer.File) {
+  async getJsonFromTxt(
+    dto: ConvertionInfoDto,
+    file: Express.Multer.File,
+    isForXml: boolean = false,
+  ) {
     try {
       var informationLines: [string?] = [];
 
@@ -104,7 +108,7 @@ export class FileParserService {
       for (var line in informationLines) {
         const subStrings = informationLines[line].split(dto.separator);
 
-        if (subStrings.length < 7) {
+        if (subStrings.length != 7) {
           throw new BadRequestException('Incorrect input parameters');
         }
 
@@ -119,6 +123,11 @@ export class FileParserService {
           dto.secret,
         );
 
+        const convertedCoordinates = await this.convertCoordsFromTxtToJson(
+          subStrings[6],
+          isForXml,
+        );
+
         json.push({
           documento: subStrings[0] ?? '',
           nombres: subStrings[1] ?? '',
@@ -126,7 +135,7 @@ export class FileParserService {
           tarjeta: tokenifiedCardNumber,
           tipo: subStrings[4] ?? '',
           telefono: subStrings[5] ?? '',
-          poligono: subStrings[6] ?? '',
+          poligono: convertedCoordinates.parsedCoordinates ?? '',
         });
       }
 
@@ -346,6 +355,47 @@ export class FileParserService {
     } catch (err) {
       console.log('Error @ extractPayloadFromToken: ' + err);
       throw new UnauthorizedException();
+    }
+  }
+
+  async convertCoordsFromTxtToJson(
+    coordsArray: string,
+    isForXml: boolean = false,
+  ) {
+    try {
+      const subStrings = coordsArray.split(']').filter((str) => str !== '');
+      let parsedCoordinates: [number[]?] = [];
+
+      for (var subStringIndex in subStrings) {
+        const currentCoordinatesSubString = subStrings[subStringIndex];
+        const coordinates = currentCoordinatesSubString.replace('[', '');
+        const separatedCoordinates = coordinates.split(',');
+
+        const finalCoordinates = separatedCoordinates.map(function (str) {
+          return parseFloat(str) || 0;
+        });
+
+        parsedCoordinates.push(finalCoordinates);
+      }
+
+      if (isForXml) {
+        let xmlTags: [object?] = [];
+
+        for (var coordinatesIndex in parsedCoordinates) {
+          const currentCoordinatesPair = parsedCoordinates[coordinatesIndex];
+
+          xmlTags.push({
+            x: currentCoordinatesPair[0],
+            y: currentCoordinatesPair[1],
+          });
+        }
+
+        return { parsedCoordinates: { coordenadas: xmlTags } };
+      }
+
+      return { parsedCoordinates };
+    } catch (err) {
+      throw err;
     }
   }
 }
